@@ -31,94 +31,12 @@ export const ExecuteModal: React.FC<ExecuteModalProps> = ({
 }) => {
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedCommand, setCopiedCommand] = useState(false);
-  const [customClientId, setCustomClientId] = useState<string>(
-    process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID !== '123456789012345678'
-      ? process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || ''
-      : ''
-  );
-  const [customBotToken, setCustomBotToken] = useState<string>('');
-  const [isSavingCreds, setIsSavingCreds] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [botLiveStatus, setBotLiveStatus] = useState<'offline' | 'online' | 'error'>('offline');
-  const [isStartingBot, setIsStartingBot] = useState(false);
-
-  React.useEffect(() => {
-    if (isOpen) {
-      fetch('/api/bot-config')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.clientId && data.clientId !== '123456789012345678') {
-            setCustomClientId(data.clientId);
-          }
-        })
-        .catch(() => {});
-
-      fetch('/api/bot-runner')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.status) setBotLiveStatus(data.status);
-        })
-        .catch(() => {});
-    }
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const activeClientId = customClientId || process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '123456789012345678';
-  const isDefaultDummy = activeClientId === '123456789012345678' || !activeClientId.trim();
-
-  const inviteUrl = isDefaultDummy
-    ? '#'
-    : `https://discord.com/oauth2/authorize?client_id=${activeClientId.trim()}&scope=bot%20applications.commands&permissions=8&state=${encodeURIComponent(`project:${project.code}:${project.id}`)}`;
-
+  const activeClientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '1558931518083174564';
+  const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${activeClientId}&scope=bot%20applications.commands&permissions=8&state=${encodeURIComponent(`project:${project.code}:${project.id}`)}`;
   const slashCommand = `/iniciar codigo:${project.code}`;
-
-  const handleSaveCredentials = async () => {
-    if (!customClientId.trim()) return;
-    setIsSavingCreds(true);
-    try {
-      await fetch('/api/bot-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          clientId: customClientId.trim(),
-          botToken: customBotToken.trim() || undefined,
-        }),
-      });
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
-    } catch (err) {
-      console.error('Erro ao salvar credenciais:', err);
-    } finally {
-      setIsSavingCreds(false);
-    }
-  };
-
-  const handleStartBot = async () => {
-    setIsStartingBot(true);
-    try {
-      // Salva token primeiro se digitou
-      if (customBotToken.trim()) {
-        await handleSaveCredentials();
-      }
-
-      const res = await fetch('/api/bot-runner', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start' }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setBotLiveStatus('online');
-      } else {
-        alert(data.error || 'Erro ao ligar o bot');
-      }
-    } catch (err) {
-      alert('Erro de conexão ao iniciar o bot');
-    } finally {
-      setIsStartingBot(false);
-    }
-  };
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(project.code);
@@ -142,19 +60,7 @@ export const ExecuteModal: React.FC<ExecuteModalProps> = ({
               <Bot className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">Executar Projeto no Discord</h2>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
-                    botLiveStatus === 'online'
-                      ? 'bg-[#57F287]/20 text-[#57F287] border-[#57F287]/30'
-                      : 'bg-[#949BA4]/20 text-[#DBDEE1] border-[#949BA4]/30'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${botLiveStatus === 'online' ? 'bg-[#57F287] animate-pulse' : 'bg-gray-400'}`} />
-                  {botLiveStatus === 'online' ? 'Bot Online' : 'Bot Offline'}
-                </span>
-              </div>
+              <h2 className="text-xl font-bold text-white">Executar Projeto no Discord</h2>
               <p className="text-xs text-[#949BA4]">Instruções de Conexão e Ativação Automática</p>
             </div>
           </div>
@@ -164,71 +70,6 @@ export const ExecuteModal: React.FC<ExecuteModalProps> = ({
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
-
-        {/* Configuração de Credenciais do Bot */}
-        <div className="bg-[#2B2D31] p-4 rounded-xl border border-[#35373C] space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase tracking-wider text-white">
-              Credenciais do seu Bot Discord
-            </label>
-            <a
-              href="https://discord.com/developers/applications"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-[#5865F2] hover:text-[#7983F5] flex items-center gap-1 font-semibold"
-            >
-              <span>Abrir Discord Developer Portal</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <span className="text-[11px] text-[#949BA4] block mb-1">Application ID:</span>
-              <input
-                type="text"
-                value={customClientId}
-                onChange={(e) => setCustomClientId(e.target.value)}
-                placeholder="Ex: 1558931518083174564"
-                className="w-full px-3 py-2 rounded-xl bg-[#111214] border border-[#2B2D31] text-xs text-white font-mono placeholder-[#5C5E66] focus:border-[#5865F2] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <span className="text-[11px] text-[#949BA4] block mb-1">Bot Token Secreto:</span>
-              <input
-                type="password"
-                value={customBotToken}
-                onChange={(e) => setCustomBotToken(e.target.value)}
-                placeholder="Cole o Bot Token (Reset Token)"
-                className="w-full px-3 py-2 rounded-xl bg-[#111214] border border-[#2B2D31] text-xs text-white font-mono placeholder-[#5C5E66] focus:border-[#5865F2] focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <p className="text-[11px] text-[#949BA4]">
-              💡 No portal do Discord, acesse a aba <strong>Bot</strong> e clique em <strong>Reset Token</strong>.
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleSaveCredentials}
-                disabled={isSavingCreds}
-                className="px-3 py-1.5 rounded-xl bg-[#1E1F22] hover:bg-[#111214] text-white text-xs font-semibold border border-[#35373C] transition-colors"
-              >
-                {saveSuccess ? 'Salvo!' : 'Salvar'}
-              </button>
-              <button
-                onClick={handleStartBot}
-                disabled={isStartingBot}
-                className="px-3.5 py-1.5 rounded-xl bg-[#57F287] hover:bg-[#45d471] text-[#111214] text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                {isStartingBot ? 'Iniciando...' : 'Ligar Bot Agora'}
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Código Exclusivo em Destaque */}
@@ -268,21 +109,15 @@ export const ExecuteModal: React.FC<ExecuteModalProps> = ({
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold text-white">Adicione o Bot ao Servidor</span>
-                  {isDefaultDummy ? (
-                    <span className="text-[11px] bg-[#111214] text-[#949BA4] px-2 py-1 rounded">
-                      Insira o ID acima para ativar o botão
-                    </span>
-                  ) : (
-                    <a
-                      href={inviteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-semibold px-3 py-1 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] text-white flex items-center gap-1.5 transition-colors shadow-sm"
-                    >
-                      <span>Convidar Bot Oficial</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
+                  <a
+                    href={inviteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold px-3 py-1 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] text-white flex items-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <span>Convidar Bot Oficial</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
                 <p className="text-xs text-[#949BA4] mt-1">
                   Autorize o bot oficial com permissão para gerenciar cargos e canais no servidor desejado.
